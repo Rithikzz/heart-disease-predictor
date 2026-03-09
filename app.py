@@ -34,21 +34,17 @@ def predict():
     try:
         data = request.json
         
-        features = [
-            float(data['age']),
-            float(data['sex']),
-            float(data['cp']),
-            float(data['trestbps']),
-            float(data['chol']),
-            float(data['fbs']),
-            float(data['restecg']),
-            float(data['thalach']),
-            float(data['exang']),
-            float(data['oldpeak']),
-            float(data['slope']),
-            float(data['ca']),
-            float(data['thal'])
-        ]
+        required_fields = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 
+                           'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal']
+        
+        features = []
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+            try:
+                features.append(float(data[field]))
+            except ValueError:
+                return jsonify({'error': f'Invalid value for field: {field}, must be numeric'}), 400
         
         features_array = np.array(features).reshape(1, -1)
         features_scaled = scaler.transform(features_array)
@@ -56,6 +52,13 @@ def predict():
         prediction = model.predict(features_scaled)[0]
         probability = model.predict_proba(features_scaled)[0]
         
+        # Optionally extracting feature importance to return
+        # Just return top 3 contributing risk factors based on feature multiplied by model feature_importances_
+        if hasattr(model, 'feature_importances_'):
+            importances = model.feature_importances_
+            # We skip detailed local interpretability for now, as global importance isn't patient-specific.
+            # But we could just pass probabilities.
+
         result = {
             'prediction': int(prediction),
             'risk': 'High Risk' if prediction == 1 else 'Low Risk',
